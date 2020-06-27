@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright 2015 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,43 @@
 package com.google.auto.value.processor;
 
 import com.google.auto.value.extension.AutoValueExtension;
+import com.google.auto.value.extension.AutoValueExtension.BuilderContext;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 
 class ExtensionContext implements AutoValueExtension.Context {
 
   private final ProcessingEnvironment processingEnvironment;
-  private final TypeElement typeElement;
+  private final TypeElement autoValueClass;
   private final ImmutableMap<String, ExecutableElement> properties;
+  private final ImmutableMap<String, TypeMirror> propertyTypes;
   private final ImmutableSet<ExecutableElement> abstractMethods;
+  private Optional<BuilderContext> builderContext = Optional.empty();
 
   ExtensionContext(
       ProcessingEnvironment processingEnvironment,
-      TypeElement typeElement,
+      TypeElement autoValueClass,
       ImmutableMap<String, ExecutableElement> properties,
+      ImmutableMap<ExecutableElement, TypeMirror> propertyMethodsAndTypes,
       ImmutableSet<ExecutableElement> abstractMethods) {
     this.processingEnvironment = processingEnvironment;
-    this.typeElement = typeElement;
+    this.autoValueClass = autoValueClass;
     this.properties = properties;
+    this.propertyTypes =
+        ImmutableMap.copyOf(Maps.transformValues(properties, propertyMethodsAndTypes::get));
     this.abstractMethods = abstractMethods;
+  }
+
+  void setBuilderContext(BuilderContext builderContext) {
+    this.builderContext = Optional.of(builderContext);
   }
 
   @Override
@@ -49,12 +62,17 @@ class ExtensionContext implements AutoValueExtension.Context {
 
   @Override
   public String packageName() {
-    return TypeSimplifier.packageNameOf(typeElement);
+    return TypeSimplifier.packageNameOf(autoValueClass);
   }
 
   @Override
   public TypeElement autoValueClass() {
-    return typeElement;
+    return autoValueClass;
+  }
+
+  @Override
+  public String finalAutoValueClassName() {
+    return AutoValueProcessor.generatedSubclassName(autoValueClass, 0);
   }
 
   @Override
@@ -63,7 +81,17 @@ class ExtensionContext implements AutoValueExtension.Context {
   }
 
   @Override
+  public Map<String, TypeMirror> propertyTypes() {
+    return propertyTypes;
+  }
+
+  @Override
   public Set<ExecutableElement> abstractMethods() {
     return abstractMethods;
+  }
+
+  @Override
+  public Optional<BuilderContext> builder() {
+    return builderContext;
   }
 }

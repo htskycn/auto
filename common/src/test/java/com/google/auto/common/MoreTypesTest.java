@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Google, Inc.
+ * Copyright 2014 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.testing.EquivalenceTester;
+import com.google.common.truth.Expect;
 import com.google.testing.compile.CompilationRule;
 import java.lang.annotation.Annotation;
 import java.util.List;
@@ -55,7 +56,8 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class MoreTypesTest {
-  @Rule public CompilationRule compilationRule = new CompilationRule();
+  @Rule public final CompilationRule compilationRule = new CompilationRule();
+  @Rule public final Expect expect = Expect.create();
 
   @Test
   public void equivalence() {
@@ -281,6 +283,7 @@ public class MoreTypesTest {
   private static class ChildA extends Parent<Number> {}
   private static class ChildB extends Parent<String> {}
   private static class GenericChild<T> extends Parent<T> {}
+  private interface InterfaceType {}
 
   @Test
   public void asElement_throws() {
@@ -317,7 +320,15 @@ public class MoreTypesTest {
     TypeElement genericChild = elements.getTypeElement(GenericChild.class.getCanonicalName());
     TypeMirror genericChildOfNumber = types.getDeclaredType(genericChild, numberType);
     TypeMirror genericChildOfInteger = types.getDeclaredType(genericChild, integerType);
+    TypeMirror objectType =
+        elements.getTypeElement(Object.class.getCanonicalName()).asType();
+    TypeMirror interfaceType =
+        elements.getTypeElement(InterfaceType.class.getCanonicalName()).asType();
 
+    assertThat(MoreTypes.nonObjectSuperclass(types, elements, (DeclaredType) objectType))
+        .isAbsent();
+    assertThat(MoreTypes.nonObjectSuperclass(types, elements, (DeclaredType) interfaceType))
+        .isAbsent();
     assertThat(MoreTypes.nonObjectSuperclass(types, elements, (DeclaredType) parent.asType()))
         .isAbsent();
 
@@ -433,4 +444,58 @@ public class MoreTypesTest {
       return null;
     }
   };
+
+  @Test
+  public void testIsConversionFromObjectUnchecked_yes() {
+    Elements elements = compilationRule.getElements();
+    TypeElement unchecked = elements.getTypeElement(Unchecked.class.getCanonicalName());
+    for (VariableElement field : ElementFilter.fieldsIn(unchecked.getEnclosedElements())) {
+      TypeMirror type = field.asType();
+      expect
+          .withMessage("Casting to %s is unchecked", type)
+          .that(MoreTypes.isConversionFromObjectUnchecked(type))
+          .isTrue();
+    }
+  }
+
+  @Test
+  public void testIsConversionFromObjectUnchecked_no() {
+    Elements elements = compilationRule.getElements();
+    TypeElement notUnchecked = elements.getTypeElement(NotUnchecked.class.getCanonicalName());
+    for (VariableElement field : ElementFilter.fieldsIn(notUnchecked.getEnclosedElements())) {
+      TypeMirror type = field.asType();
+      expect
+          .withMessage("Casting to %s is not unchecked", type)
+          .that(MoreTypes.isConversionFromObjectUnchecked(type))
+          .isFalse();
+    }
+  }
+
+  // The type of every field here is such that casting to it provokes an "unchecked" warning.
+  @SuppressWarnings("unused")
+  private static class Unchecked<T> {
+    private List<String> listOfString;
+    private List<? extends CharSequence> listOfExtendsCharSequence;
+    private List<? super CharSequence> listOfSuperCharSequence;
+    private List<T> listOfT;
+    private List<T[]> listOfArrayOfT;
+    private T t;
+    private T[] arrayOfT;
+    private List<T>[] arrayOfListOfT;
+    private Map<?, String> mapWildcardToString;
+    private Map<String, ?> mapStringToWildcard;
+  }
+
+  // The type of every field here is such that casting to it doesn't provoke an "unchecked" warning.
+  @SuppressWarnings("unused")
+  private static class NotUnchecked {
+    private String string;
+    private int integer;
+    private String[] arrayOfString;
+    private int[] arrayOfInt;
+    private Thread.State threadStateEnum;
+    private List<?> listOfWildcard;
+    private List<? extends Object> listOfWildcardExtendsObject;
+    private Map<?, ?> mapWildcardToWildcard;
+  }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Google, Inc.
+ * Copyright 2013 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.google.auto.factory;
 
+import com.google.auto.factory.otherpackage.OtherPackage;
 import dagger.Module;
 import dagger.Provides;
 
@@ -39,5 +40,20 @@ final class DaggerModule {
   @Qualifier
   int provideQualifiedPrimitive() {
     return 2;
+  }
+
+  @Provides
+  Number provideNumber() {
+    return 3;
+  }
+
+  @Provides
+  ReferencePackage provideReferencePackage(ReferencePackageFactory factory) {
+    return factory.create(17);
+  }
+
+  @Provides
+  OtherPackage provideOtherPackage() {
+    return new OtherPackage(null, 23);
   }
 }

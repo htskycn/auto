@@ -28,7 +28,7 @@ How do I...
     *   ... [let my builder **accumulate** values for a collection-valued
         property (not require them all at once)?](#accumulate)
     *   ... [accumulate values for a collection-valued property, without
-        **breaking the chain**?](#add)
+        **"breaking the chain"**?](#add)
     *   ... [offer **both** accumulation and set-at-once methods for the same
         collection-valued property?](#collection_both)
 *   ... [access nested builders while building?](#nested_builders)
@@ -315,8 +315,27 @@ introduced related classes in `java.util` called [`OptionalInt`],
 example a property of type `OptionalInt` will default to `OptionalInt.empty()`
 and you can set it with either `setFoo(OptionalInt)` or `setFoo(int)`.
 
+```java
+@AutoValue
+public abstract class Animal {
+  public abstract Optional<String> name();
+
+  public static Builder builder() {
+    return new AutoValue_Animal.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    // You can have either or both of these two methods:
+    public abstract Builder setName(Optional<String> value);
+    public abstract Builder setName(String value);
+    public abstract Animal build();
+  }
+}
+```
+
 [`java.util.Optional`]: https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html
-[`com.google.common.base.Optional`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html
+[`com.google.common.base.Optional`]: https://guava.dev/releases/snapshot/api/docs/com/google/common/base/Optional.html
 [`OptionalDouble`]: https://docs.oracle.com/javase/8/docs/api/java/util/OptionalDouble.html
 [`OptionalInt`]: https://docs.oracle.com/javase/8/docs/api/java/util/OptionalInt.html
 [`OptionalLong`]: https://docs.oracle.com/javase/8/docs/api/java/util/OptionalLong.html
@@ -395,6 +414,11 @@ public abstract class Animal {
 }
 ```
 
+The name of this method must be exactly the property name (`countries` here)
+followed by the string `Builder`. Even if the properties follow the
+`getCountries()` convention, the builder method must be `countriesBuilder()`
+and not `getCountriesBuilder()`.
+
 You may notice a small problem with this example: the caller can no longer
 create their instance in a single chained statement:
 
@@ -426,8 +450,8 @@ One solution for this problem is just below.
 
 ### <a name="add"></a>... accumulate values for a collection-valued property, without "breaking the chain"?
 
-Another option is to keep `countriesBuilder()` itself non-public, only use it to
-implement a public `addCountry` method:
+Another option is to keep `countriesBuilder()` itself non-public, and only use
+it to implement a public `addCountry` method:
 
 ```java
 @AutoValue
@@ -470,8 +494,14 @@ Now the caller can do this:
 
 ### <a name="collection_both"></a>... offer both accumulation and set-at-once methods for the same collection-valued property?
 
-You can have both. If the caller uses `setFoos` after `foosBuilder` has been
-called, an unchecked exception will be thrown.
+Yes, you can provide both methods, letting your caller choose the style they
+prefer.
+
+The same caller can mix the two styles only in limited ways; once `foosBuilder`
+has been called, any subsequent call to `setFoos` will throw an unchecked
+exception. On the other hand, calling `setFoos` first is okay; a later call to
+`foosBuilder` will return a builder already populated with the
+previously-supplied elements.
 
 ## <a name="nested_builders"></a>... access nested builders while building?
 
@@ -547,6 +577,19 @@ requirements are:
   method then `Species` must also have a `toBuilder()` method. That also applies
   if there is an abstract `setSpecies` method in addition to the
   `speciesBuilder` method.
+
+  As an alternative to having a method `Species.Builder toBuilder()` in
+  `Species`, `Species.Builder` can have a method called `addAll` or `putAll`
+  that accepts an argument of type `Species`. This is how AutoValue handles
+  `ImmutableSet` for example. `ImmutableSet` does not have a `toBuilder()`
+  method, but `ImmutableSet.Builder` does have an `addAll` method that accepts
+  an `ImmutableSet`. So given `ImmutableSet<String> strings`, we can achieve the
+  effect of `strings.toBuilder()` by doing:
+
+  ```
+  ImmutableSet.Builder<String> builder = ImmutableSet.builder();
+  builder.addAll(strings);
+  ```
 
 There are no requirements on the name of the builder class. Instead of
 `Species.Builder`, it could be `Species.Factory` or `SpeciesBuilder`.

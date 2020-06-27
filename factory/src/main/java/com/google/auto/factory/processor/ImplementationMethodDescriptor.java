@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Google, Inc.
+ * Copyright 2013 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,14 +36,19 @@ abstract class ImplementationMethodDescriptor {
   @AutoValue.Builder
   static abstract class Builder {
     abstract Builder name(String name);
+    
     abstract Builder returnType(TypeMirror returnTypeElement);
-    abstract Builder publicMethod(boolean publicMethod);
-    abstract Builder passedParameters(Iterable<Parameter> passedParameters);
-    abstract Builder isVarArgs(boolean isVarargs);
-    abstract ImplementationMethodDescriptor build();
 
-    Builder publicMethod() {
+    abstract Builder publicMethod(boolean publicMethod);
+
+    final Builder publicMethod() {
       return publicMethod(true);
     }
+
+    abstract Builder passedParameters(Iterable<Parameter> passedParameters);
+
+    abstract Builder isVarArgs(boolean isVarargs);
+
+    abstract ImplementationMethodDescriptor build();
   }
 }

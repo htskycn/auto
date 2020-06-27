@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Google, Inc.
+ * Copyright 2014 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.google.auto.common;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertFalse;
@@ -32,6 +33,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
@@ -107,6 +109,26 @@ public class MoreElementsTest {
         fail();
       } catch (IllegalArgumentException expected) {
       }
+    }
+  }
+
+  @Test
+  public void asTypeParameterElement() {
+    Element typeParameterElement =
+        getOnlyElement(
+            compilation
+                .getElements()
+                .getTypeElement(List.class.getCanonicalName())
+                .getTypeParameters());
+    assertThat(MoreElements.asTypeParameter(typeParameterElement)).isEqualTo(typeParameterElement);
+  }
+
+  @Test
+  public void asTypeParameterElement_illegalArgument() {
+    try {
+      MoreElements.asTypeParameter(javaLangPackageElement);
+      fail();
+    } catch (IllegalArgumentException expected) {
     }
   }
 
@@ -205,16 +227,24 @@ public class MoreElementsTest {
   }
 
   private abstract static class ParentClass {
+    static void staticMethod() {}
+
     abstract String foo();
-    private void ignored() {}
+
+    private void privateMethod() {}
   }
 
   private interface ParentInterface {
+    static void staticMethod() {}
+
     abstract int bar();
+
     abstract int bar(long x);
   }
 
   private abstract static class Child extends ParentClass implements ParentInterface {
+    static void staticMethod() {}
+
     @Override
     public int bar() {
       return 0;
@@ -238,15 +268,16 @@ public class MoreElementsTest {
     Set<ExecutableElement> childTypeMethods =
         MoreElements.getLocalAndInheritedMethods(childType, elements);
     Set<ExecutableElement> objectMethods = visibleMethodsFromObject();
-    assertThat(childTypeMethods).containsAllIn(objectMethods);
+    assertThat(childTypeMethods).containsAtLeastElementsIn(objectMethods);
     Set<ExecutableElement> nonObjectMethods = Sets.difference(childTypeMethods, objectMethods);
     assertThat(nonObjectMethods).containsExactly(
-        getMethod(ParentClass.class, "foo"),
-        getMethod(ParentInterface.class, "bar", longMirror),
-        getMethod(Child.class, "bar"),
-        getMethod(Child.class, "baz"),
-        getMethod(Child.class, "buh", intMirror),
-        getMethod(Child.class, "buh", intMirror, intMirror));
+            getMethod(ParentInterface.class, "bar", longMirror),
+            getMethod(ParentClass.class, "foo"),
+            getMethod(Child.class, "bar"),
+            getMethod(Child.class, "baz"),
+            getMethod(Child.class, "buh", intMirror),
+            getMethod(Child.class, "buh", intMirror, intMirror))
+        .inOrder();;
   }
 
   @Test
@@ -260,15 +291,43 @@ public class MoreElementsTest {
     Set<ExecutableElement> childTypeMethods =
         MoreElements.getLocalAndInheritedMethods(childType, types, elements);
     Set<ExecutableElement> objectMethods = visibleMethodsFromObject();
-    assertThat(childTypeMethods).containsAllIn(objectMethods);
+    assertThat(childTypeMethods).containsAtLeastElementsIn(objectMethods);
     Set<ExecutableElement> nonObjectMethods = Sets.difference(childTypeMethods, objectMethods);
     assertThat(nonObjectMethods).containsExactly(
-        getMethod(ParentClass.class, "foo"),
-        getMethod(ParentInterface.class, "bar", longMirror),
-        getMethod(Child.class, "bar"),
-        getMethod(Child.class, "baz"),
-        getMethod(Child.class, "buh", intMirror),
-        getMethod(Child.class, "buh", intMirror, intMirror));
+            getMethod(ParentInterface.class, "bar", longMirror),
+            getMethod(ParentClass.class, "foo"),
+            getMethod(Child.class, "bar"),
+            getMethod(Child.class, "baz"),
+            getMethod(Child.class, "buh", intMirror),
+            getMethod(Child.class, "buh", intMirror, intMirror))
+        .inOrder();
+  }
+
+  @Test
+  public void getAllMethods() {
+    Elements elements = compilation.getElements();
+    Types types = compilation.getTypes();
+    TypeMirror intMirror = types.getPrimitiveType(TypeKind.INT);
+    TypeMirror longMirror = types.getPrimitiveType(TypeKind.LONG);
+    TypeElement childType = elements.getTypeElement(Child.class.getCanonicalName());
+    @SuppressWarnings("deprecation")
+    Set<ExecutableElement> childTypeMethods =
+        MoreElements.getAllMethods(childType, types, elements);
+    Set<ExecutableElement> objectMethods = allMethodsFromObject();
+    assertThat(childTypeMethods).containsAtLeastElementsIn(objectMethods);
+    Set<ExecutableElement> nonObjectMethods = Sets.difference(childTypeMethods, objectMethods);
+    assertThat(nonObjectMethods).containsExactly(
+            getMethod(ParentInterface.class, "staticMethod"),
+            getMethod(ParentInterface.class, "bar", longMirror),
+            getMethod(ParentClass.class, "staticMethod"),
+            getMethod(ParentClass.class, "foo"),
+            getMethod(ParentClass.class, "privateMethod"),
+            getMethod(Child.class, "staticMethod"),
+            getMethod(Child.class, "bar"),
+            getMethod(Child.class, "baz"),
+            getMethod(Child.class, "buh", intMirror),
+            getMethod(Child.class, "buh", intMirror, intMirror))
+        .inOrder();
   }
 
   static class Injectable {}
@@ -317,12 +376,30 @@ public class MoreElementsTest {
         methods.add(method);
       }
     }
-    assertThat(methods).containsAllOf(
-        getMethod(Object.class, "clone"),
-        getMethod(Object.class, "finalize"),
-        getMethod(Object.class, "wait"),
-        getMethod(Object.class, "wait", longMirror),
-        getMethod(Object.class, "wait", longMirror, intMirror));
+    assertThat(methods)
+        .containsAtLeast(
+            getMethod(Object.class, "clone"),
+            getMethod(Object.class, "finalize"),
+            getMethod(Object.class, "wait"),
+            getMethod(Object.class, "wait", longMirror),
+            getMethod(Object.class, "wait", longMirror, intMirror));
+    return methods;
+  }
+
+  private Set<ExecutableElement> allMethodsFromObject() {
+    Types types = compilation.getTypes();
+    TypeMirror intMirror = types.getPrimitiveType(TypeKind.INT);
+    TypeMirror longMirror = types.getPrimitiveType(TypeKind.LONG);
+    Set<ExecutableElement> methods = new HashSet<>();
+    methods.addAll(ElementFilter.methodsIn(objectElement.getEnclosedElements()));
+    assertThat(methods)
+        .containsAtLeast(
+            getMethod(Object.class, "clone"),
+            getMethod(Object.class, "registerNatives"),
+            getMethod(Object.class, "finalize"),
+            getMethod(Object.class, "wait"),
+            getMethod(Object.class, "wait", longMirror),
+            getMethod(Object.class, "wait", longMirror, intMirror));
     return methods;
   }
 

@@ -1,5 +1,7 @@
 # Auto
 
+[![Build Status](https://travis-ci.org/google/auto.svg?branch=master)](https://travis-ci.org/google/auto)
+
 A collection of source code generators for [Java][java].
 
 ## Auto‽
@@ -23,7 +25,7 @@ Save time.  Save code.  Save sanity.
 
     [![Maven Central](https://img.shields.io/maven-central/v/com.google.auto.service/auto-service.svg)](https://mvnrepository.com/artifact/com.google.auto.service/auto-service)
 
-  * [AutoValue] - Immutable [value-type] code generation for Java 1.6+.
+  * [AutoValue] - Immutable [value-type] code generation for Java 7+.
 
     [![Maven Central](https://img.shields.io/maven-central/v/com.google.auto.value/auto-value.svg)](https://mvnrepository.com/artifact/com.google.auto.value/auto-value)
 
@@ -33,7 +35,7 @@ Save time.  Save code.  Save sanity.
 
 ## License
 
-    Copyright 2013 Google, Inc.
+    Copyright 2013 Google LLC
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

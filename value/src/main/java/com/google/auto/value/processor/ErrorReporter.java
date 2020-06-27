@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Google, Inc.
+ * Copyright 2014 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.google.auto.value.processor;
 
+import com.google.errorprone.annotations.FormatMethod;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -23,11 +24,11 @@ import javax.tools.Diagnostic;
 /**
  * Handle error reporting for an annotation processor.
  *
- * @see AutoValue
  * @author Éamonn McManus
  */
 class ErrorReporter {
   private final Messager messager;
+  private int errorCount;
 
   ErrorReporter(ProcessingEnvironment processingEnv) {
     this.messager = processingEnv.getMessager();
@@ -36,21 +37,25 @@ class ErrorReporter {
   /**
    * Issue a compilation note.
    *
-   * @param msg the text of the note
    * @param e the element to which it pertains
+   * @param format the format string for the text of the note
+   * @param args arguments for the format string
    */
-  void reportNote(String msg, Element e) {
-    messager.printMessage(Diagnostic.Kind.NOTE, msg, e);
+  @FormatMethod
+  void reportNote(Element e, String format, Object... args) {
+    messager.printMessage(Diagnostic.Kind.NOTE, String.format(format, args), e);
   }
 
   /**
    * Issue a compilation warning.
    *
-   * @param msg the text of the warning
    * @param e the element to which it pertains
+   * @param format the format string for the text of the warning
+   * @param args arguments for the format string
    */
-  void reportWarning(String msg, Element e) {
-    messager.printMessage(Diagnostic.Kind.WARNING, msg, e);
+  @FormatMethod
+  void reportWarning(Element e, String format, Object... args) {
+    messager.printMessage(Diagnostic.Kind.WARNING, String.format(format, args), e);
   }
 
   /**
@@ -59,22 +64,39 @@ class ErrorReporter {
    * CompilationTest for any new call to reportError(...) to ensure that we continue correctly after
    * an error.
    *
-   * @param msg the text of the warning
    * @param e the element to which it pertains
+   * @param format the format string for the text of the warning
+   * @param args arguments for the format string
    */
-  void reportError(String msg, Element e) {
-    messager.printMessage(Diagnostic.Kind.ERROR, msg, e);
+  @FormatMethod
+  void reportError(Element e, String format, Object... args) {
+    messager.printMessage(Diagnostic.Kind.ERROR, String.format(format, args), e);
+    errorCount++;
   }
 
   /**
    * Issue a compilation error and abandon the processing of this class. This does not prevent the
    * processing of other classes.
    *
-   * @param msg the text of the error
    * @param e the element to which it pertains
+   * @param format the format string for the text of the error
+   * @param args arguments for the format string
    */
-  void abortWithError(String msg, Element e) {
-    reportError(msg, e);
+  @FormatMethod
+  void abortWithError(Element e, String format, Object... args) {
+    reportError(e, format, args);
     throw new AbortProcessingException();
+  }
+
+  /** The number of errors that have been output by calls to {@link #reportError}. */
+  int errorCount() {
+    return errorCount;
+  }
+
+  /** Abandon the processing of this class if any errors have been output. */
+  void abortIfAnyError() {
+    if (errorCount > 0) {
+      throw new AbortProcessingException();
+    }
   }
 }

@@ -1,7 +1,7 @@
 # AutoValue
 
 
-*Generated immutable value classes for Java 1.6+* <br />
+*Generated immutable value classes for Java 7+* <br />
 ***Éamonn McManus, Kevin Bourrillion*** <br />
 **Google, Inc.**
 
@@ -56,7 +56,6 @@ import com.google.auto.value.AutoValue;
 @AutoValue
 abstract class Animal {
   static Animal create(String name, int numberOfLegs) {
-    // See "How do I...?" below for nested classes.
     return new AutoValue_Animal(name, numberOfLegs);
   }
 
@@ -65,39 +64,90 @@ abstract class Animal {
 }
 ```
 
+The constructor parameters correspond, in order, to the abstract accessor
+methods.
+
+**For a nested class**, see ["How do I use AutoValue with a nested class"](howto.md#nested).
+
 Note that in real life, some classes and methods would presumably be public and
 have Javadoc. We're leaving these off in the User Guide only to keep the
 examples short and simple.
 
-### In `pom.xml`
 
-Maven users should add the following to the project's `pom.xml` file:
+### With Maven
+
+You will need `auto-value-annotations-${auto-value.version}.jar` in your
+compile-time classpath, and you will need `auto-value-${auto-value.version}.jar`
+in your annotation-processor classpath.
+
+For `auto-value-annotations`, you can write this in `pom.xml`:
 
 ```xml
-<dependency>
-  <groupId>com.google.auto.value</groupId>
-  <artifactId>auto-value</artifactId>
-  <version>1.2</version>
-  <scope>provided</scope>
-</dependency>
+<dependencies>
+  <dependency>
+    <groupId>com.google.auto.value</groupId>
+    <artifactId>auto-value-annotations</artifactId>
+    <version>${auto-value.version}</version>
+  </dependency>
+</dependencies>
 ```
 
-Gradle users should install the annotation processing plugin [as described in
-these instructions][tbroyer-apt] and then use it in the `build.gradle` script:
+For `auto-value` (the annotation processor), you can write this:
+
+```xml
+<build>
+  <plugins>
+    <plugin>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <configuration>
+        <annotationProcessorPaths>
+          <path>
+            <groupId>com.google.auto.value</groupId>
+            <artifactId>auto-value</artifactId>
+            <version>${auto-value.version}</version>
+          </path>
+        </annotationProcessorPaths>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>
+```
+
+Alternatively, you can include the processor itself in your compile-time
+classpath. Doing so may pull unnecessary classes into your runtime classpath.
+
+```xml
+<dependencies>
+  <dependency>
+    <groupId>com.google.auto.value</groupId>
+    <artifactId>auto-value</artifactId>
+    <version>${auto-value.version}</version>
+    <optional>true</optional>
+  </dependency>
+</dependencies>
+```
+
+### With Gradle
+
+Gradle users can declare the dependencies in their `build.gradle` script:
 
 ```groovy
 dependencies {
-  compileOnly "com.google.auto.value:auto-value:1.2"
-  apt         "com.google.auto.value:auto-value:1.2"
+  // Use 'api' rather than 'compile' for Android or java-library projects.
+  compile             "com.google.auto.value:auto-value-annotations:${autoValueVersion}"
+  annotationProcessor "com.google.auto.value:auto-value:${autoValueVersion}"
 }
 ```
+
+Note: If you are using a version of Gradle prior to 4.6, you must apply an
+annotation processing plugin [as described in these instructions][tbroyer-apt].
 
 [tbroyer-apt]: https://plugins.gradle.org/plugin/net.ltgt.apt
 
 
 ### <a name="usage"></a>Usage
 
-Your choice to use AutoValue is essentially *API-invisible*. That means that to
+Your choice to use AutoValue is essentially *API-invisible*. This means that, to
 the consumer of your class, your class looks and functions like any other. The
 simple test below illustrates that behavior. Note that in real life, you would
 write tests that actually *do something interesting* with the object, instead of
@@ -163,6 +213,12 @@ unordered collections like `HashSet`.
 
 See [Why AutoValue?](why.md).
 
+## <a name="versions"></a>What Java versions does it work with?
+
+AutoValue requires that your compiler be at least Java 8. However, the code that
+it generates is compatible with Java 7. That means that you can use it with
+`-source 7 -target 7` or (for Java 9+) `--release 7`.
+
 ## <a name="more_howto"></a>How do I...
 
 How do I...
@@ -174,15 +230,15 @@ How do I...
 *   ... [perform other **validation**?](howto.md#validate)
 *   ... [use a property of a **mutable** type?](howto.md#mutable_property)
 *   ... [use a **custom** implementation of `equals`, etc.?](howto.md#custom)
-*   ... [**ignore** certain properties in `equals`, etc.?](howto.md#ignore)
-*   ... [have multiple **create** methods, or name it/them
+*   ... [have AutoValue implement a concrete or default
+    method?](howto.md#concrete)
+*   ... [have multiple **`create`** methods, or name it/them
     differently?](howto.md#create)
+*   ... [**ignore** certain properties in `equals`, etc.?](howto.md#ignore)
 *   ... [have AutoValue also implement abstract methods from my
     **supertypes**?](howto.md#supertypes)
 *   ... [use AutoValue with a **generic** class?](howto.md#generic)
-*   ... [make my class Java- or GWT- **serializable**?](howto.md#serialize)
-*   ... [apply an **annotation** to a generated
-    **field**?](howto.md#annotate_field)
+*   ... [make my class Java- or GWT\-**serializable**?](howto.md#serialize)
 *   ... [use AutoValue to **implement** an **annotation**
     type?](howto.md#annotation)
 *   ... [also include **setter** (mutator) methods?](howto.md#setters)
@@ -196,7 +252,13 @@ How do I...
     API?](howto.md#public_constructor)
 *   ... [use AutoValue on an **interface**, not abstract
     class?](howto.md#interface)
-*   ... [**memoize** derived properties?](howto.md#memoize)
+*   ... [**memoize** ("cache") derived properties?](howto.md#memoize)
+*   ... [memoize the result of `hashCode` or
+    `toString`?](howto.md#memoize_hash_tostring)
+*   ... [make a class where only one of its properties is ever
+    set?](howto.md#oneof)
+*   ... [copy annotations from a class/method to the implemented
+    class/method/field?](howto.md#copy_annotations)
 
 <!-- TODO(kevinb): should the above be only a selected subset? -->
 

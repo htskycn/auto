@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Google, Inc.
+ * Copyright 2016 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,24 @@
 
 package com.google.auto.value.extension.memoized;
 
-import static com.google.common.truth.Truth.assertAbout;
-import static com.google.testing.compile.JavaSourceSubjectFactory.javaSource;
+import static com.google.testing.compile.CompilationSubject.assertThat;
+import static com.google.testing.compile.Compiler.javac;
 
+import com.google.auto.value.extension.memoized.processor.MemoizeExtension;
 import com.google.auto.value.processor.AutoValueProcessor;
 import com.google.common.collect.ImmutableList;
-import com.google.common.truth.FailureStrategy;
+import com.google.common.truth.FailureMetadata;
 import com.google.common.truth.Subject;
+import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
 
-final class MemoizedMethodSubject extends Subject<MemoizedMethodSubject, String> {
+final class MemoizedMethodSubject extends Subject {
+  private final String actual;
 
-  MemoizedMethodSubject(FailureStrategy failureStrategy, String subject) {
-    super(failureStrategy, subject);
+  MemoizedMethodSubject(FailureMetadata failureMetadata, String actual) {
+    super(failureMetadata, actual);
+    this.actual = actual;
   }
 
   void hasError(String error) {
@@ -41,14 +45,15 @@ final class MemoizedMethodSubject extends Subject<MemoizedMethodSubject, String>
             "",
             "@AutoValue abstract class Value {",
             "  abstract String string();",
-            getSubject(),
+            actual,
             "}");
-    assertAbout(javaSource())
-        .that(file)
-        .processedWith(new AutoValueProcessor(ImmutableList.of(new MemoizeExtension())))
-        .failsToCompile()
-        .withErrorContaining(error)
-        .in(file)
-        .onLine(6);
+    Compilation compilation =
+        javac()
+            .withProcessors(new AutoValueProcessor(ImmutableList.of(new MemoizeExtension())))
+            .compile(file);
+    assertThat(compilation)
+        .hadErrorContaining(error)
+        .inFile(file)
+        .onLineContaining(actual);
   }
 }
